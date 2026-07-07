@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ORBITAL // Economic Health Platform</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+
+<style>
+  :root{
+    --bg-deep:#0A1614;
+    --bg-panel:#0F1E1B;
+    --bg-panel-2:#132723;
+    --line:#1E3733;
+    --amber:#E8A94C;
+    --amber-dim:#8A6A34;
+    --cyan:#5ECFCB;
+    --sand:#C9AE82;
+    --red:#E2604F;
+    --green:#7FBF8F;
+    --text-primary:#EDEFEA;
+    --text-muted:#8AA39D;
+    --text-faint:#527069;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    background:
+      radial-gradient(ellipse at 15% 0%, rgba(94,207,203,0.06), transparent 45%),
+      radial-gradient(ellipse at 85% 100%, rgba(232,169,76,0.05), transparent 50%),
+      var(--bg-deep);
+    color:var(--text-primary);
+    font-family:'Inter', sans-serif;
+    min-height:100vh;
+  }
+  .mono{font-family:'IBM Plex Mono', monospace;}
+  .display{font-family:'Space Grotesk', sans-serif;}
+
+  /* ===== Header ===== */
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 24px;
+    border-bottom:1px solid var(--line);
+    background:rgba(15,30,27,0.6);
+    backdrop-filter:blur(6px);
+    position:sticky; top:0; z-index:1000;
+    flex-wrap:wrap; gap:10px;
+  }
+  .brand{display:flex; align-items:center; gap:12px;}
+  .brand-mark{
+    width:34px; height:34px; border-radius:50%;
+    border:1.5px solid var(--amber);
+    position:relative;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  .brand-mark::before{
+    content:'';
+    width:6px; height:6px; border-radius:50%;
+    background:var(--amber);
+    box-shadow:0 0 8px 2px rgba(232,169,76,0.7);
+  }
+  .brand-mark::after{
+    content:'';
+    position:absolute; inset:-1.5px;
+    border-radius:50%;
+    border:1px dashed rgba(232,169,76,0.35);
+    animation:spin 12s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .brand-text .title{font-size:17px; font-weight:600; letter-spacing:0.06em;}
+  .brand-text .subtitle{font-size:11px; color:var(--text-muted); letter-spacing:0.04em; margin-top:1px;}
+
+  .header-right{display:flex; align-items:center; gap:20px; font-size:12px; color:var(--text-muted);}
+  .live-badge{
+    display:flex; align-items:center; gap:7px;
+    padding:5px 10px; border:1px solid var(--line); border-radius:20px;
+    background:rgba(126,191,143,0.05);
+  }
+  .live-dot{
+    width:7px; height:7px; border-radius:50%; background:var(--green);
+    box-shadow:0 0 6px 2px rgba(127,191,143,0.6);
+    animation:pulse 1.8s ease-in-out infinite;
+  }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+  #clock{color:var(--text-primary);}
+
+  /* ===== Layout ===== */
+  .shell{
+    max-width:1500px; margin:0 auto; padding:20px 24px 60px;
+    display:grid; grid-template-columns:2.1fr 1fr; gap:18px;
+  }
+  @media (max-width:1000px){ .shell{grid-template-columns:1fr;} }
+
+  .panel{
+    background:linear-gradient(180deg, var(--bg-panel), var(--bg-panel-2));
+    border:1px solid var(--line);
+    border-radius:10px;
+    overflow:hidden;
+  }
+  .panel-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:13px 16px; border-bottom:1px solid var(--line);
+    gap:10px; flex-wrap:wrap;
+  }
+  .panel-head h2{font-size:12px; text-transform:uppercase; letter-spacing:0.11em; font-weight:600; color:var(--text-muted);}
+  .panel-head .eyebrow{color:var(--cyan);}
+
+  /* ===== Map column ===== */
+  .map-col{display:flex; flex-direction:column; gap:18px;}
+  .map-wrap{position:relative; height:520px;}
+  #map{height:100%; width:100%; background:#0c1d1a;}
+
+  .layer-toggle{display:flex; gap:6px; flex-wrap:wrap;}
+  .layer-btn{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px; letter-spacing:0.03em;
+    padding:6px 10px; border-radius:6px;
+    border:1px solid var(--line); background:rgba(255,255,255,0.02);
+    color:var(--text-muted); cursor:pointer; transition:all 0.15s ease;
+    white-space:nowrap;
+  }
+  .layer-btn:hover{ border-color:var(--cyan); color:var(--text-primary); }
+  .layer-btn.active{
+    background:rgba(94,207,203,0.12); border-color:var(--cyan); color:var(--cyan);
+  }
+
+  .scanline{
+    position:absolute; top:0; left:0; right:0; height:2px;
+    background:linear-gradient(90deg, transparent, rgba(94,207,203,0.9), transparent);
+    animation:sweep 6s linear infinite;
+    z-index:400; pointer-events:none;
+  }
+  @keyframes sweep{ 0%{ top:0; } 100%{ top:100%; } }
+
+  .legend{
+    position:absolute; bottom:12px; left:12px; z-index:500;
+    background:rgba(10,22,20,0.85); border:1px solid var(--line);
+    border-radius:8px; padding:9px 12px; font-size:10.5px;
+    color:var(--text-muted); backdrop-filter:blur(4px);
+  }
+  .legend .bar{
+    width:120px; height:6px; border-radius:3px; margin:6px 0 4px;
+    background:linear-gradient(90deg, #E2604F, #E8A94C, #7FBF8F);
+  }
+  .legend-labels{display:flex; justify-content:space-between; font-family:'IBM Plex Mono', monospace;}
+
+  /* ===== Region list ===== */
+  .region-list{padding:8px;}
+  .region-row{
+    display:flex; align-items:center; gap:11px;
+    padding:10px 10px; border-radius:8px; cursor:pointer;
+    transition:background 0.15s ease;
+  }
+  .region-row:hover{ background:rgba(255,255,255,0.03); }
+  .region-row.selected{ background:rgba(94,207,203,0.08); border:1px solid rgba(94,207,203,0.25); }
+  .region-row .dot{width:9px; height:9px; border-radius:50%; flex-shrink:0;}
+  .region-row .rname{font-size:13px; font-weight:500; flex:1;}
+  .region-row .rsector{font-size:10.5px; color:var(--text-faint); font-family:'IBM Plex Mono', monospace;}
+  .region-row .rscore{font-family:'IBM Plex Mono', monospace; font-size:13px; font-weight:600; width:34px; text-align:right;}
+  .region-row .rflag{color:var(--red); font-size:10px; margin-left:4px;}
+  .region-row .rlive{color:var(--green); font-size:10px; margin-left:4px; font-family:'IBM Plex Mono', monospace;}
+  .live-badge.synthetic{ border-color:rgba(232,169,76,0.35); background:rgba(232,169,76,0.06); }
+  .live-badge.synthetic .live-dot{ background:var(--amber); box-shadow:0 0 6px 2px rgba(232,169,76,0.6); }
+  .live-badge.error{ border-color:rgba(226,96,79,0.35); background:rgba(226,96,79,0.06); }
+  .live-badge.error .live-dot{ background:var(--red); box-shadow:0 0 6px 2px rgba(226,96,79,0.6); animation:none; }
+
+  /* ===== Sidebar ===== */
+  .sidebar{display:flex; flex-direction:column; gap:18px;}
+
+  .score-block{padding:20px 18px;}
+  .score-top{display:flex; align-items:baseline; justify-content:space-between;}
+  .score-region{font-size:11px; color:var(--cyan); text-transform:uppercase; letter-spacing:0.09em; font-family:'IBM Plex Mono', monospace;}
+  .score-num-row{display:flex; align-items:flex-end; gap:14px; margin-top:8px;}
+  .score-num{font-size:52px; font-weight:700; line-height:1; font-family:'Space Grotesk', sans-serif;}
+  .score-delta{font-family:'IBM Plex Mono', monospace; font-size:14px; padding-bottom:8px;}
+  .score-delta.up{color:var(--green);}
+  .score-delta.down{color:var(--red);}
+  .score-sub{font-size:11.5px; color:var(--text-muted); margin-top:6px;}
+
+  .conf-row{display:flex; gap:8px; margin-top:14px; align-items:center;}
+  .conf-track{flex:1; height:5px; border-radius:3px; background:rgba(255,255,255,0.06); overflow:hidden;}
+  .conf-fill{height:100%; background:linear-gradient(90deg, var(--cyan), var(--green));}
+  .conf-label{font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--text-muted); white-space:nowrap;}
+
+  .pillars{padding:6px 18px 18px;}
+  .pillar-row{margin-bottom:12px;}
+  .pillar-top{display:flex; justify-content:space-between; font-size:11.5px; margin-bottom:5px;}
+  .pillar-top .pname{color:var(--text-muted);}
+  .pillar-top .pval{font-family:'IBM Plex Mono', monospace; font-weight:600;}
+  .pillar-track{height:6px; border-radius:3px; background:rgba(255,255,255,0.06); overflow:hidden;}
+  .pillar-fill{height:100%; border-radius:3px;}
+
+  .alerts-panel .panel-body{padding:6px 8px 12px;}
+  .alert-item{
+    display:flex; gap:10px; padding:10px 10px; border-radius:8px;
+    border-left:2px solid var(--red); background:rgba(226,96,79,0.06);
+    margin:6px 8px; font-size:12px;
+  }
+  .alert-item.none{
+    border-left-color:var(--green); background:rgba(127,191,143,0.06);
+    color:var(--text-muted); font-style:normal;
+  }
+  .alert-item b{display:block; font-size:12.5px; margin-bottom:2px;}
+
+  /* ===== Bottom row ===== */
+  .bottom-row{
+    grid-column:1 / -1;
+    display:grid; grid-template-columns:1.5fr 1fr; gap:18px;
+  }
+  @media (max-width:1000px){ .bottom-row{grid-template-columns:1fr;} }
+
+  .chart-wrap{padding:16px; height:260px; position:relative;}
+  .range-toggle{display:flex; gap:6px;}
+
+  .insight-body{padding:16px 18px;}
+  .insight-text{font-size:13.5px; line-height:1.65; color:var(--text-primary); margin-bottom:14px;}
+  .insight-text .hl{color:var(--amber); font-weight:600;}
+  .insight-meta{
+    display:flex; align-items:center; gap:8px; font-size:10.5px;
+    color:var(--text-faint); font-family:'IBM Plex Mono', monospace;
+    border-top:1px solid var(--line); padding-top:10px;
+  }
+  .ai-dot{width:6px; height:6px; border-radius:50%; background:var(--cyan); box-shadow:0 0 5px 1px rgba(94,207,203,0.7);}
+
+  footer{
+    max-width:1500px; margin:0 auto; padding:0 24px 40px;
+    font-size:11px; color:var(--text-faint); line-height:1.7;
+  }
+  footer b{color:var(--text-muted);}
+
+  ::-webkit-scrollbar{width:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--line); border-radius:4px;}
+
+  .leaflet-popup-content-wrapper{
+    background:var(--bg-panel-2); color:var(--text-primary); border:1px solid var(--line);
+  }
+  .leaflet-popup-tip{background:var(--bg-panel-2);}
+  .leaflet-container{ font-family:'Inter', sans-serif; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-mark"></div>
+    <div class="brand-text">
+      <div class="title display">ORBITAL</div>
+      <div class="subtitle mono">ECONOMIC HEALTH PLATFORM — ABU DHABI PILOT</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="live-badge" id="liveBadge"><div class="live-dot" id="liveDot"></div> <span id="liveBadgeText">CHECKING DATA SOURCE…</span></div>
+    <div>DATA AS OF <span class="mono" id="clock">—</span></div>
+  </div>
+</header>
+
+<div class="shell">
+
+  <!-- MAP COLUMN -->
+  <div class="map-col">
+    <div class="panel">
+      <div class="panel-head">
+        <h2><span class="eyebrow">01 /</span> REGIONAL ACTIVITY MAP</h2>
+        <div class="layer-toggle" id="layerToggle"></div>
+      </div>
+      <div class="map-wrap">
+        <div class="scanline"></div>
+        <div id="map"></div>
+        <div class="legend">
+          <div id="legendTitle">ECONOMIC HEALTH INDEX</div>
+          <div class="bar"></div>
+          <div class="legend-labels"><span>Weak</span><span>Neutral</span><span>Strong</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2><span class="eyebrow">02 /</span> ZONES RANKED BY EHI</h2></div>
+      <div class="region-list" id="regionList"></div>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="panel score-block">
+      <div class="score-top">
+        <div class="score-region mono" id="sbRegion">—</div>
+      </div>
+      <div class="score-num-row">
+        <div class="score-num" id="sbScore">—</div>
+        <div class="score-delta" id="sbDelta">—</div>
+      </div>
+      <div class="score-sub" id="sbSub">—</div>
+      <div class="conf-row">
+        <div class="conf-track"><div class="conf-fill" id="confFill" style="width:0%"></div></div>
+        <div class="conf-label mono" id="confLabel">—</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2><span class="eyebrow">03 /</span> PILLAR BREAKDOWN</h2></div>
+      <div class="pillars" id="pillars"></div>
+    </div>
+
+    <div class="panel alerts-panel">
+      <div class="panel-head"><h2><span class="eyebrow">04 /</span> EARLY-WARNING ALERTS</h2></div>
+      <div class="panel-body" id="alerts"></div>
+    </div>
+  </div>
+
+  <!-- BOTTOM ROW -->
+  <div class="bottom-row">
+    <div class="panel">
+      <div class="panel-head">
+        <h2><span class="eyebrow">05 /</span> EHI TREND — <span id="chartRegionLabel">—</span></h2>
+        <div class="range-toggle" id="rangeToggle"></div>
+      </div>
+      <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2><span class="eyebrow">06 /</span> AI-GENERATED INSIGHT</h2></div>
+      <div class="insight-body">
+        <div class="insight-text" id="insightText">—</div>
+        <div class="insight-meta"><div class="ai-dot"></div> GENERATED FROM PILLAR DELTAS · MODEL: CLAUDE · REGION-SPECIFIC</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <b>About this dashboard —</b> it now looks for real pipeline output at <code>data/ehi_live.json</code> on load. If found, matching zones are marked <span style="color:#7FBF8F">● LIVE</span> and use real Earth Engine numbers; any zone without a match, or if the file isn't found at all, falls back to the illustrative synthetic data so the demo never breaks. <b>Important:</b> most browsers block this kind of file fetch when you open the HTML file directly (double-click / <code>file://</code>) — it needs to be served over HTTP, e.g. via GitHub Pages, or locally with <code>python -m http.server</code> run from the folder containing both this file and <code>data/ehi_live.json</code>. Base map tiles © OpenStreetMap contributors.
+</footer>
+
+<script>
+/* =========================================================
+   1. REGION DEFINITIONS
+   ========================================================= */
+const REGIONS = [
+  { id:'adcity', name:'Abu Dhabi City', sector:'SERVICES / FINANCE', lat:24.4539, lng:54.3773, base:74, trend:0.25, vol:2.6 },
+  { id:'kizad',  name:'KIZAD Industrial Zone', sector:'INDUSTRIAL / PORT', lat:24.7743, lng:54.6511, base:68, trend:0.55, vol:3.2 },
+  { id:'masdar', name:'Masdar City', sector:'CLEAN ENERGY / R&D', lat:24.4372, lng:54.6167, base:71, trend:0.35, vol:2.2 },
+  { id:'alain',  name:'Al Ain', sector:'AGRICULTURE / LOGISTICS', lat:24.2075, lng:55.7447, base:63, trend:0.05, vol:2.0 },
+  { id:'dhafra', name:'Al Dhafra Region', sector:'ENERGY / DESERT AGRI', lat:24.1103, lng:52.7306, base:58, trend:-0.65, vol:3.6, shock:true },
+  { id:'yas',    name:'Yas Island / Saadiyat', sector:'TOURISM / CULTURE', lat:24.4972, lng:54.6084, base:70, trend:0.4, vol:2.8 },
+];
+
+const PILLAR_DEFS = [
+  { key:'activity',  name:'Activity Intensity (VIIRS night lights)', color:'#E8A94C' },
+  { key:'built',      name:'Built Environment Growth (Sentinel-1/2)', color:'#5ECFCB' },
+  { key:'industrial', name:'Industrial Signal (NO₂ / SO₂)', color:'#C9AE82' },
+  { key:'trade',      name:'Trade & Connectivity (ports/roads)', color:'#7FBF8F' },
+  { key:'agri',       name:'Agriculture & Resource Base (NDVI/GRACE)', color:'#8FA6E8' },
+  { key:'risk',       name:'Environmental Risk (penalty)', color:'#E2604F' },
+];
+
+const LAYERS = [
+  { key:'ehi', label:'EHI COMPOSITE' },
+  { key:'activity', label:'NIGHT LIGHTS' },
+  { key:'built', label:'CONSTRUCTION' },
+  { key:'industrial', label:'INDUSTRIAL NO₂' },
+  { key:'agri', label:'AGRICULTURE' },
+];
+
+/* =========================================================
+   2. SEEDED RNG + SYNTHETIC TIME SERIES GENERATION
+   ========================================================= */
+function mulberry32(a){
+  return function(){
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const MONTHS = 24;
+function monthLabel(offsetFromNow){
+  const d = new Date(2026,6,1); // July 2026 anchor
+  d.setMonth(d.getMonth() - offsetFromNow);
+  return d.toLocaleString('en-US',{ month:'short', year:'2-digit' });
+}
+
+function genSeries(region, seed){
+  const rng = mulberry32(seed);
+  const series = [];
+  const pillarSeries = { activity:[], built:[], industrial:[], trade:[], agri:[], risk:[] };
+  let level = region.base - region.trend*MONTHS*0.5;
+
+  for(let i=0;i<MONTHS;i++){
+    let step = region.trend + (rng()-0.5)*region.vol;
+    // embed a shock event around month 15 for the flagged region
+    if(region.shock && i>=14 && i<=17){ step -= 4.5; }
+    if(region.shock && i>=18){ step += 0.4; } // partial recovery afterwards
+    level += step;
+    level = Math.max(20, Math.min(95, level));
+    series.push(Math.round(level*10)/10);
+
+    PILLAR_DEFS.forEach(p=>{
+      let pv;
+      if(p.key==='risk'){
+        pv = 15 + rng()*20 + (region.shock && i>=14 && i<=17 ? 25 : 0);
+      } else {
+        pv = Math.max(10, Math.min(96, level + (rng()-0.5)*14 + (p.key==='built' && region.id==='kizad' ? 8:0)));
+      }
+      pillarSeries[p.key].push(Math.round(pv));
+    });
+  }
+  return { series, pillarSeries };
+}
+
+REGIONS.forEach((r, idx)=>{
+  const g = genSeries(r, 1000+idx*77);
+  r.series = g.series;
+  r.pillarSeries = g.pillarSeries;
+  r.latest = r.series[r.series.length-1];
+  r.prev = r.series[r.series.length-2];
+  r.delta = Math.round((r.latest - r.prev)*10)/10;
+  // rolling confidence = simulated cloud-free data completeness
+  const rngc = mulberry32(5000+idx);
+  r.confidence = Math.round(72 + rngc()*24);
+  r.isLive = false;
+  r.livePulledAt = null;
+});
+
+/* =========================================================
+   2b. LIVE DATA — fetch real pipeline output and merge it in
+   Expected file: data/ehi_live.json, shaped as:
+   { "<region_id>": { "months": [...], "ehi": [...],
+                       "confidence_pct": [...],
+                       "pillars": { "activity":[...], "built":[...],
+                                    "industrial":[...], "agri":[...] } }, ... }
+   Any pillar not present (e.g. "trade", "risk" — not directly satellite-
+   measured in this build) is left as its synthetic continuation so the UI
+   doesn't break; only pillars the pipeline actually produced are marked live.
+   ========================================================= */
+async function fetchLiveData(){
+  try{
+    const resp = await fetch('data/ehi_live.json', { cache:'no-store' });
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    const liveData = await resp.json();
+    let mergedCount = 0;
+
+    REGIONS.forEach(region=>{
+      const live = liveData[region.id];
+      if(!live || !Array.isArray(live.ehi) || live.ehi.length === 0) return;
+
+      const n = live.ehi.length;
+      const tailStart = region.series.length - n;
+
+      // splice the real EHI values into the tail of the existing series
+      for(let i=0;i<n;i++){
+        region.series[tailStart+i] = live.ehi[i];
+      }
+      // splice whichever real pillars were provided
+      Object.keys(live.pillars || {}).forEach(pk=>{
+        if(!region.pillarSeries[pk]) return;
+        for(let i=0;i<n;i++){
+          region.pillarSeries[pk][tailStart+i] = live.pillars[pk][i];
+        }
+      });
+
+      region.latest = region.series[region.series.length-1];
+      region.prev = region.series[region.series.length-2];
+      region.delta = Math.round((region.latest - region.prev)*10)/10;
+      if(Array.isArray(live.confidence_pct) && live.confidence_pct.length){
+        region.confidence = Math.round(live.confidence_pct[live.confidence_pct.length-1]);
+      }
+      region.isLive = true;
+      region.livePulledAt = live.pulled_at || null;
+      region.liveMonths = live.months;
+      region.livePillarKeys = Object.keys(live.pillars || {});
+      mergedCount++;
+    });
+
+    return { ok:true, mergedCount };
+  } catch(err){
+    console.warn('Live data fetch failed, staying on synthetic demo data:', err);
+    return { ok:false, error:err };
+  }
+}
+
+function updateLiveBadge(result){
+  const badge = document.getElementById('liveBadge');
+  const text = document.getElementById('liveBadgeText');
+  if(result.ok && result.mergedCount > 0){
+    badge.className = 'live-badge';
+    text.textContent = `LIVE DATA — ${result.mergedCount} ZONE${result.mergedCount>1?'S':''} FROM EARTH ENGINE`;
+  } else if(result.ok && result.mergedCount === 0){
+    badge.className = 'live-badge synthetic';
+    text.textContent = 'SYNTHETIC DEMO DATA — data/ehi_live.json HAD NO MATCHING ZONES';
+  } else {
+    badge.className = 'live-badge synthetic';
+    text.textContent = 'SYNTHETIC DEMO DATA — NO LIVE FEED FOUND';
+  }
+}
+
+/* =========================================================
+   3. EARLY-WARNING DETECTION (real z-score logic on synthetic data)
+   ========================================================= */
+function computeAlert(region){
+  const s = region.series;
+  const window = s.slice(-13,-1); // trailing 12 months excluding latest
+  const mean = window.reduce((a,b)=>a+b,0)/window.length;
+  const variance = window.reduce((a,b)=>a+(b-mean)**2,0)/window.length;
+  const std = Math.sqrt(variance) || 1;
+  const z = (region.latest - mean)/std;
+  return { z:Math.round(z*100)/100, mean:Math.round(mean*10)/10, flagged: z <= -1.3 };
+}
+REGIONS.forEach(r=> r.alert = computeAlert(r));
+
+/* =========================================================
+   4. COLOR SCALE
+   ========================================================= */
+function scoreColor(v){
+  if(v>=72) return '#7FBF8F';
+  if(v>=60) return '#E8A94C';
+  return '#E2604F';
+}
+
+/* =========================================================
+   5. MAP
+   ========================================================= */
+const map = L.map('map', { zoomControl:true, attributionControl:false }).setView([24.42, 54.35], 7.2);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  maxZoom:12, minZoom:6
+}).addTo(map);
+L.control.attribution({position:'bottomright'}).addAttribution('&copy; OpenStreetMap &copy; CARTO').addTo(map);
+
+let currentLayer = 'ehi';
+const markers = {};
+
+function valueForLayer(region, layerKey){
+  if(layerKey==='ehi') return region.latest;
+  return region.pillarSeries[layerKey][region.pillarSeries[layerKey].length-1];
+}
+
+function renderMarkers(){
+  REGIONS.forEach(region=>{
+    const val = valueForLayer(region, currentLayer);
+    const radius = 9 + (val/100)*22;
+    const color = scoreColor(val);
+    if(markers[region.id]){ map.removeLayer(markers[region.id]); }
+    const m = L.circleMarker([region.lat, region.lng], {
+      radius, color, weight:2, fillColor:color, fillOpacity:0.35,
+      className:'pulse-marker'
+    }).addTo(map);
+    m.bindPopup(`<b>${region.name}</b><br/><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;">${LAYERS.find(l=>l.key===currentLayer).label}: ${val}</span>`);
+    m.on('click', ()=> selectRegion(region.id));
+    markers[region.id] = m;
+  });
+}
+
+/* =========================================================
+   6. LAYER TOGGLE UI
+   ========================================================= */
+const layerToggleEl = document.getElementById('layerToggle');
+LAYERS.forEach(l=>{
+  const btn = document.createElement('div');
+  btn.className = 'layer-btn' + (l.key==='ehi' ? ' active':'');
+  btn.textContent = l.label;
+  btn.onclick = ()=>{
+    currentLayer = l.key;
+    [...layerToggleEl.children].forEach(c=>c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('legendTitle').textContent = l.label;
+    renderMarkers();
+  };
+  layerToggleEl.appendChild(btn);
+});
+
+/* =========================================================
+   7. REGION LIST
+   ========================================================= */
+let selectedId = 'adcity';
+let rangeMode = 12;
+
+function renderRegionList(){
+  const listEl = document.getElementById('regionList');
+  listEl.innerHTML = '';
+  const sorted = [...REGIONS].sort((a,b)=> b.latest - a.latest);
+  sorted.forEach(region=>{
+    const row = document.createElement('div');
+    row.className = 'region-row' + (region.id===selectedId ? ' selected':'');
+    row.innerHTML = `
+      <div class="dot" style="background:${scoreColor(region.latest)}"></div>
+      <div style="flex:1">
+        <div class="rname">${region.name}${region.isLive ? '<span class="rlive">● LIVE</span>':''}${region.alert.flagged ? '<span class="rflag mono">⚠ FLAGGED</span>':''}</div>
+        <div class="rsector">${region.sector}</div>
+      </div>
+      <div class="rscore" style="color:${scoreColor(region.latest)}">${region.latest.toFixed(0)}</div>
+    `;
+    row.onclick = ()=> selectRegion(region.id);
+    listEl.appendChild(row);
+  });
+}
+
+/* =========================================================
+   8. SIDEBAR RENDER
+   ========================================================= */
+function renderSidebar(region){
+  document.getElementById('sbRegion').textContent = region.name + ' · ' + region.sector;
+  document.getElementById('sbScore').textContent = region.latest.toFixed(1);
+  document.getElementById('sbScore').style.color = scoreColor(region.latest);
+  const deltaEl = document.getElementById('sbDelta');
+  const up = region.delta >= 0;
+  deltaEl.textContent = (up?'▲ +':'▼ ') + region.delta.toFixed(1) + ' MoM';
+  deltaEl.className = 'score-delta ' + (up?'up':'down');
+  document.getElementById('sbSub').textContent = `Trailing 12-month mean: ${region.alert.mean} · z-score: ${region.alert.z}`;
+  document.getElementById('confFill').style.width = region.confidence + '%';
+  document.getElementById('confLabel').textContent = 'CONF ' + region.confidence + '%';
+
+  const pillarsEl = document.getElementById('pillars');
+  pillarsEl.innerHTML = '';
+  PILLAR_DEFS.forEach(p=>{
+    const val = region.pillarSeries[p.key][region.pillarSeries[p.key].length-1];
+    const row = document.createElement('div');
+    row.className = 'pillar-row';
+    row.innerHTML = `
+      <div class="pillar-top"><span class="pname">${p.name}</span><span class="pval" style="color:${p.color}">${val}</span></div>
+      <div class="pillar-track"><div class="pillar-fill" style="width:${val}%; background:${p.color}"></div></div>
+    `;
+    pillarsEl.appendChild(row);
+  });
+}
+
+/* =========================================================
+   9. ALERTS PANEL
+   ========================================================= */
+function renderAlerts(){
+  const el = document.getElementById('alerts');
+  el.innerHTML = '';
+  const flagged = REGIONS.filter(r=>r.alert.flagged);
+  if(flagged.length===0){
+    el.innerHTML = `<div class="alert-item none">No zones currently breaching the -1.3σ threshold.</div>`;
+    return;
+  }
+  flagged.forEach(region=>{
+    const item = document.createElement('div');
+    item.className = 'alert-item';
+    item.innerHTML = `<div><b>${region.name} — possible slowdown</b>EHI at ${region.latest.toFixed(1)}, ${Math.abs(region.alert.z)}σ below its trailing 12-month mean of ${region.alert.mean}.</div>`;
+    el.appendChild(item);
+  });
+}
+
+/* =========================================================
+   10. TREND CHART
+   ========================================================= */
+let trendChart;
+function renderChart(region){
+  document.getElementById('chartRegionLabel').textContent = region.name;
+  const n = rangeMode;
+  const dataSlice = region.series.slice(-n);
+  const labels = [];
+  for(let i=n-1;i>=0;i--) labels.push(monthLabel(i));
+
+  const ctx = document.getElementById('trendChart').getContext('2d');
+  if(trendChart) trendChart.destroy();
+  trendChart = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels,
+      datasets:[{
+        label:'EHI',
+        data:dataSlice,
+        borderColor:'#5ECFCB',
+        backgroundColor:'rgba(94,207,203,0.08)',
+        borderWidth:2,
+        pointRadius:0,
+        pointHoverRadius:4,
+        fill:true,
+        tension:0.35,
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{
+        backgroundColor:'#132723', borderColor:'#1E3733', borderWidth:1,
+        titleFont:{family:'IBM Plex Mono'}, bodyFont:{family:'IBM Plex Mono'}
+      }},
+      scales:{
+        x:{ ticks:{ color:'#8AA39D', font:{family:'IBM Plex Mono', size:10} }, grid:{ color:'rgba(255,255,255,0.03)' } },
+        y:{ ticks:{ color:'#8AA39D', font:{family:'IBM Plex Mono', size:10} }, grid:{ color:'rgba(255,255,255,0.05)' }, suggestedMin:20, suggestedMax:95 }
+      }
+    }
+  });
+}
+
+const rangeToggleEl = document.getElementById('rangeToggle');
+[['12M',12],['24M',24]].forEach(([label,val])=>{
+  const btn = document.createElement('div');
+  btn.className = 'layer-btn' + (val===12 ? ' active':'');
+  btn.textContent = label;
+  btn.onclick = ()=>{
+    rangeMode = val;
+    [...rangeToggleEl.children].forEach(c=>c.classList.remove('active'));
+    btn.classList.add('active');
+    renderChart(REGIONS.find(r=>r.id===selectedId));
+  };
+  rangeToggleEl.appendChild(btn);
+});
+
+/* =========================================================
+   11. AI INSIGHT GENERATOR (rule-based narrative on real deltas)
+   ========================================================= */
+function renderInsight(region){
+  const p3 = (key)=>{
+    const arr = region.pillarSeries[key];
+    const now = arr[arr.length-1];
+    const then = arr[arr.length-4];
+    return Math.round(((now-then)/then)*1000)/10;
+  };
+  const built = p3('built');
+  const ind = p3('industrial');
+  const trade = p3('trade');
+  const agri = p3('agri');
+
+  const moves = [
+    {name:'construction signal', val:built, key:'built'},
+    {name:'industrial signal', val:ind, key:'industrial'},
+    {name:'trade & connectivity signal', val:trade, key:'trade'},
+    {name:'agricultural signal', val:agri, key:'agri'},
+  ].sort((a,b)=> Math.abs(b.val)-Math.abs(a.val));
+  const lead = moves[0];
+
+  let text = `Over the trailing 3 months, ${region.name}'s <span class="hl">${lead.name}</span> moved ${lead.val>=0?'up':'down'} ${Math.abs(lead.val)}%, the largest driver of this period's EHI change. `;
+
+  if(region.alert.flagged){
+    text += `This coincides with the index falling <span class="hl">${Math.abs(region.alert.z)}σ</span> below its 12-month trend, which is enough to trigger an early-warning flag — worth a closer look at whether this reflects a genuine slowdown or a temporary disruption (e.g. weather, maintenance shutdown, seasonal effect) before drawing conclusions. `;
+  } else if(region.delta >= 0){
+    text += `The overall EHI is trending upward at ${region.latest.toFixed(1)} (+${region.delta.toFixed(1)} month-on-month), with no early-warning thresholds currently breached. `;
+  } else {
+    text += `The overall EHI eased slightly to ${region.latest.toFixed(1)} (${region.delta.toFixed(1)} month-on-month), still within normal historical variation for this zone. `;
+  }
+
+  text += `Confidence in this read is <span class="hl">${region.confidence}%</span>, reflecting cloud-free satellite pass coverage over the reporting window.`;
+  document.getElementById('insightText').innerHTML = text;
+}
+
+/* =========================================================
+   12. SELECT REGION (master update)
+   ========================================================= */
+function selectRegion(id){
+  selectedId = id;
+  const region = REGIONS.find(r=>r.id===id);
+  renderRegionList();
+  renderSidebar(region);
+  renderChart(region);
+  renderInsight(region);
+  map.flyTo([region.lat, region.lng], 8.4, { duration:0.6 });
+  markers[id].openPopup();
+}
+
+/* =========================================================
+   13. CLOCK
+   ========================================================= */
+function tickClock(){
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleString('en-GB', {
+    day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit'
+  });
+}
+setInterval(tickClock, 1000);
+tickClock();
+
+/* =========================================================
+   INIT
+   ========================================================= */
+(async function init(){
+  const liveResult = await fetchLiveData();
+  REGIONS.forEach(r=> r.alert = computeAlert(r)); // recompute using merged data
+  renderMarkers();
+  renderAlerts();
+  selectRegion('adcity');
+  updateLiveBadge(liveResult);
+})();
+</script>
+</body>
+</html>
